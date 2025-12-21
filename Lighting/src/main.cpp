@@ -5,35 +5,39 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
 
 #include "shader.h"
 #include "obj_loader.h"
 #include "camera.h"
 
-// =====================================================
-// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ ОРБИТ
-// =====================================================
+// Модели
+OBJModel tableModel;
+OBJModel chairModel;
+OBJModel vaseModel;
+OBJModel cubeModel;
+OBJModel treeModel;
+OBJModel hatModel;
+OBJModel candyModel;
+OBJModel snowmanModel;
+OBJModel lampModel;          // модель шара-лампы
 
-GLuint orbitShaderProgram = 0;
-GLuint orbitVAO = 0, orbitVBO = 0;
+// Текстуры
+GLuint modelTexture = 0;
+GLuint chairTexture = 0;
+GLuint vaseTexture = 0;
+GLuint cubeTexture = 0;
+GLuint treeTexture = 0;
+GLuint hatTexture = 0;
+GLuint candyTexture = 0;
+GLuint snowmanTexture = 0;
+GLuint lampTexture = 0;      // текстура для шара-лампы
 
-// =====================================================
-// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ ИНСТАНЦИРОВАНИЯ
-// =====================================================
-
-InstancedShader* instancedShader = nullptr;
+Shader* shader = nullptr;
 Camera* camera = nullptr;
 
-GLuint sunTexture = 0;
-GLuint planetTexture = 0;
-
-GLuint instanceVBO = 0;
-GLuint instanceVAO = 0;
-size_t instanceCount = 0;
-
-// =====================================================
-// ИНИЦИАЛИЗАЦИЯ
-// =====================================================
 
 void initGL() {
     glClearColor(66.0f / 255.0f, 133.0f / 255.0f, 180.0f / 255.0f, 1.0f);
@@ -44,12 +48,6 @@ void initGL() {
     std::cout << " OpenGL инициализирован" << std::endl;
     std::cout << "  Версия: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "  Vendor: " << glGetString(GL_VENDOR) << std::endl;
-}
-
-void initShaders() {
-    instancedShader = new InstancedShader();
-    std::cout << "Инстанцированные шейдеры скомпилированы" << std::endl;    
-    initOrbitShader();
 }
 
 GLuint loadTexture(const std::string& filename) {
@@ -81,39 +79,127 @@ GLuint loadTexture(const std::string& filename) {
     }
 }
 
+void initResources() {
+    if (!tableModel.load("models/table.obj")) {
+        std::cerr << "Ошибка загрузки модели стола" << std::endl;
+    }
+    else {
+        std::cout << "Модель стола загружена: "
+            << tableModel.vertices.size() << " вершин, "
+            << tableModel.indices.size() << " индексов" << std::endl;
+    }
+    modelTexture = loadTexture("textures/table.png");
 
-// =====================================================
-// ОСНОВНОЙ ЦИКЛ
-// =====================================================
+    if (!chairModel.load("models/chair.obj")) {
+        std::cerr << "Ошибка загрузки модели стула" << std::endl;
+    }
+    else {
+        std::cout << "Модель стула загружена: "
+            << chairModel.vertices.size() << " вершин, "
+            << chairModel.indices.size() << " индексов" << std::endl;
+    }
 
+    chairTexture = loadTexture("textures/chair.png");
+
+    if (!vaseModel.load("models/vase.obj")) {
+        std::cerr << "Ошибка загрузки модели вазы" << std::endl;
+    }
+    else {
+        std::cout << "Модель вазы загружена: "
+            << vaseModel.vertices.size() << " вершин, "
+            << vaseModel.indices.size() << " индексов" << std::endl;
+    }
+
+    vaseTexture = loadTexture("textures/vase.png");
+
+    if (!cubeModel.load("models/cube.obj")) {
+        std::cerr << "Ошибка загрузки модели кубика" << std::endl;
+    }
+    else {
+        std::cout << "Модель кубика загружена: "
+            << cubeModel.vertices.size() << " вершин, "
+            << cubeModel.indices.size() << " индексов" << std::endl;
+    }
+
+    cubeTexture = loadTexture("textures/cube.jpg");
+
+    if (!treeModel.load("models/PolyTree.obj")) {
+        std::cerr << "Ошибка загрузки модели дерева" << std::endl;
+    }
+    else {
+        std::cout << "Модель дерева загружена: "
+            << treeModel.vertices.size() << " вершин, "
+            << treeModel.indices.size() << " индексов" << std::endl;
+    }
+
+    treeTexture = loadTexture("textures/PolyTree.jpg");
+
+    if (!candyModel.load("models/candy.obj")) {
+        std::cerr << "Ошибка загрузки модели конфеты" << std::endl;
+    }
+    else {
+        std::cout << "Модель конфеты загружена: "
+            << candyModel.vertices.size() << " вершин, "
+            << candyModel.indices.size() << " индексов" << std::endl;
+    }
+
+    candyTexture = loadTexture("textures/candy.png");
+
+    if (!snowmanModel.load("models/snowman.obj")) {
+        std::cerr << "Ошибка загрузки модели снеговика" << std::endl;
+    }
+    else {
+        std::cout << "Модель снеговика загружена: "
+            << snowmanModel.vertices.size() << " вершин, "
+            << snowmanModel.indices.size() << " индексов" << std::endl;
+    }
+
+    snowmanTexture = loadTexture("textures/snowman.png");
+
+    // Шар, обозначающий положение точечного источника света
+    if (!lampModel.load("models/sphere.obj")) {
+        std::cerr << "Ошибка загрузки модели шара-лампы" << std::endl;
+    }
+    else {
+        std::cout << "Модель шара-лампы загружена: "
+            << lampModel.vertices.size() << " вершин, "
+            << lampModel.indices.size() << " индексов" << std::endl;
+    }
+
+    // Текстура для лампы
+    lampTexture = loadTexture("textures/sphere.jpg");
+
+    shader = new Shader();
+    std::cout << "Шейдер инициализирован" << std::endl;
+}
+
+
+// TODO
 void render(float width, float height) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glm::mat4 view = camera->getViewMatrix();
-    glm::mat4 projection = camera->getProjectionMatrix(width / height);
+    //glm::mat4 view = camera->getViewMatrix();
+    //glm::mat4 projection = camera->getProjectionMatrix(width / height);
 
 
-    // Рисуем все инстансы за один вызов
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, planetTexture);
-    instancedShader->setInt("textureSampler", 0);
+    //// Рисуем все инстансы за один вызов
+    //glActiveTexture(GL_TEXTURE0);
+    //glBindTexture(GL_TEXTURE_2D, planetTexture);
+    //instancedShader->setInt("textureSampler", 0);
 
-    glBindVertexArray(instanceVAO);
-    glDrawElementsInstanced(GL_TRIANGLES,
-                           0,
-                           GL_UNSIGNED_INT,
-                           0,
-                           instanceCount);
-    glBindVertexArray(0);
+    //glBindVertexArray(instanceVAO);
+    //glDrawElementsInstanced(GL_TRIANGLES,
+    //                       0,
+    //                       GL_UNSIGNED_INT,
+    //                       0,
+    //                       instanceCount);
+    //glBindVertexArray(0);
 
-    glBindTexture(GL_TEXTURE_2D, 0);
+    //glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
 }
 
-// =====================================================
-// УПРАВЛЕНИЕ КАМЕРОЙ И ОРБИТАМИ
-// =====================================================
-
+// TODO
 void handleInput(float deltaTime) {
     float moveSpeed = 5.0f * deltaTime;
     float rotateSpeed = 50.0f * deltaTime;
@@ -143,7 +229,7 @@ void handleInput(float deltaTime) {
     }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
-        camera->rotatePitch(rotateSpeed);  
+        camera->rotatePitch(rotateSpeed);
     }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
@@ -166,12 +252,14 @@ void handleInput(float deltaTime) {
             std::cout << "Камера сброшена в начальную позицию" << std::endl;
             rKeyPressed = true;
         }
-    } else {
+    }
+    else {
         rKeyPressed = false;
     }
 }
 
 int main() {
+    setlocale(LC_ALL, "ru.UTF-8");
     sf::ContextSettings settings;
     settings.depthBits = 24;
     settings.stencilBits = 8;
@@ -180,8 +268,8 @@ int main() {
     settings.minorVersion = 3;
     settings.attributeFlags = sf::ContextSettings::Core;
 
-    sf::RenderWindow window(sf::VideoMode(1200, 800), "Lightning",
-                           sf::Style::Default, settings);
+    sf::RenderWindow window(sf::VideoMode(1200, 800), "Model Viewer",
+        sf::Style::Default, settings);
     window.setVerticalSyncEnabled(true);
     window.setActive(true);
 
@@ -191,13 +279,15 @@ int main() {
         return -1;
     }
 
-    std::cout << "=== СОЛНЕЧНАЯ СИСТЕМА ===" << std::endl;
+    std::cout << "\n=== MODEL VIEWER ===" << std::endl;
     std::cout << std::endl;
 
     initGL();
-    initShaders();
-    initModelsAndSystem();
-    camera = new Camera(glm::vec3(0.0f, 10.0f, 30.0f));
+    initResources();
+
+    camera = new Camera(glm::vec3(0.0f, 5.0f, 20.0f),
+        glm::vec3(0.0f, 0.0f, -1.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f));
 
     std::cout << std::endl;
     std::cout << "  УПРАВЛЕНИЕ:" << std::endl;
@@ -210,47 +300,43 @@ int main() {
 
     sf::Clock clock;
     bool running = true;
-    float frameTime = 0.0f;
-    int frameCount = 0;
 
     while (running && window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed ||
                 (event.type == sf::Event::KeyPressed &&
-                 event.key.code == sf::Keyboard::Escape)) {
+                    event.key.code == sf::Keyboard::Escape)) {
                 running = false;
             }
-            
+
             if (event.type == sf::Event::Resized) {
                 glViewport(0, 0, event.size.width, event.size.height);
             }
         }
 
         float deltaTime = clock.restart().asSeconds();
-        frameTime += deltaTime;
-        frameCount++;
 
         handleInput(deltaTime);
-
         render(window.getSize().x, window.getSize().y);
 
         window.display();
     }
 
-    delete instancedShader;
+    delete shader;
     delete camera;
-    glDeleteTextures(1, &sunTexture);
-    glDeleteTextures(1, &planetTexture);
-    glDeleteBuffers(1, &instanceVBO);
-    glDeleteVertexArrays(1, &instanceVAO);
-    
-    glDeleteProgram(orbitShaderProgram);
-    glDeleteBuffers(1, &orbitVBO);
-    glDeleteVertexArrays(1, &orbitVAO);
+    glDeleteTextures(1, &modelTexture);
+    glDeleteTextures(1, &chairTexture);
+    glDeleteTextures(1, &vaseTexture);
+    glDeleteTextures(1, &cubeTexture);
+    glDeleteTextures(1, &treeTexture);
+    glDeleteTextures(1, &hatTexture);
+    glDeleteTextures(1, &candyTexture);
+    glDeleteTextures(1, &snowmanTexture);
+    glDeleteTextures(1, &lampTexture);
 
     window.close();
-    std::cout << "✅ Программа завершена" << std::endl;
+    std::cout << "✓ Программа завершена" << std::endl;
 
     return 0;
 }

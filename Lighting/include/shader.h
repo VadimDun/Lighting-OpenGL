@@ -1,25 +1,21 @@
-#ifndef SHADER_INSTANCED_H
-#define SHADER_INSTANCED_H
+#ifndef SHADER_H
+#define SHADER_H
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>
-#include <vector>
+#include <glm/gtc/type_ptr.hpp>
 #include <string>
+#include <iostream>
 
-class InstancedShader {
+class Shader {
 public:
     GLuint programID;
     
-    // Конструктор для инстанцированного шейдера
-    InstancedShader();
+    Shader();
+    ~Shader();
     
-    // Деструктор
-    ~InstancedShader();
-    
-    // Использовать программу
     void use() const;
     
-    // Установить uniform переменные
     void setMat4(const std::string& name, const glm::mat4& mat) const;
     void setVec3(const std::string& name, const glm::vec3& vec) const;
     void setFloat(const std::string& name, float value) const;
@@ -29,6 +25,4 @@ private:
     void checkCompileErrors(GLuint shader, const std::string& type);
 };
 
-extern const char* orbitVertexShader;
-extern const char* orbitFragmentShader;
-#endif 
+#endif
