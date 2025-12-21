@@ -67,32 +67,180 @@ uniform int spotLightEnabled;
 // 0 - Phong, 1 - Toon, 2 - Minnaert
 uniform int shadingModel;
 
-//TODO
-void main() {
-    // Получаем цвет текстуры
-    vec4 texColor = texture(textureSampler, TexCoord);
-    //if (texColor.a < 0.1) discard;
-    
-    // Фонговое освещение
-    vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(lightPos - FragPos);
-    
-    // Амбиентное освещение
-    float ambientStrength = 0.4;
-    vec3 ambient = ambientStrength * texColor.rgb;
-    
-    // Диффузное освещение
+vec3 calcDirLight(DirLight light, vec3 norm, vec3 viewDir, vec3 baseColor)
+{
+    vec3 lightDir = normalize(-light.direction);
+
     float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = diff * texColor.rgb;
-    
-    // Спекулярное освещение
-    float specularStrength = 0.5;
-    vec3 viewDir = normalize(-FragPos);
+
     vec3 reflectDir = reflect(-lightDir, norm);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
-    vec3 specular = specularStrength * spec * vec3(1.0);
-    
-    vec3 result = ambient + diffuse + specular;
-    FragColor = vec4(result, texColor.a);
+
+    vec3 ambient  = 0.15 * baseColor;
+    vec3 diffuse  = diff * baseColor;
+    vec3 specular = 0.3 * spec * vec3(1.0);
+
+    return (ambient + diffuse + specular) * light.intensity;
+}
+
+vec3 calcPointLight(PointLight light, vec3 norm, vec3 fragPos, vec3 viewDir, vec3 baseColor)
+{
+    // TODO
+    return vec3(0.0);
+}
+
+vec3 calcSpotLight(SpotLight light, vec3 norm, vec3 fragPos, vec3 viewDir, vec3 baseColor)
+{
+    // TODO
+    return vec3(0.0);
+}
+
+void main() {
+    vec4 texColor = texture(textureSampler, TexCoord);
+
+    vec3 baseColor = texColor.rgb;
+
+    vec3 norm    = normalize(Normal);
+    vec3 viewDir = normalize(viewPos - FragPos);
+
+    // Суммируем вклад трёх источников (база для Phong)
+    vec3 result  = vec3(0.0);
+
+    result += calcDirLight(dirLight, norm, viewDir, baseColor);
+
+    if (pointLightEnabled == 1) {
+        result += calcPointLight(pointLight, norm, FragPos, viewDir, baseColor);
+    }
+
+    if (spotLightEnabled == 1) {
+        result += calcSpotLight(spotLight, norm, FragPos, viewDir, baseColor);
+    }
+
+    if (shadingModel == 0) { // Phong (уже посчитан в result)
+        FragColor = vec4(result, texColor.a);
+    } else if (shadingModel == 1) { // Toon Shading
+        float brightness = max(result.r, max(result.g, result.b));
+        brightness = clamp(brightness, 0.0, 1.0);
+
+        float level = 0.0;
+        if (brightness < 0.2)
+            level = 0.0;
+        else if (brightness < 0.4)
+            level = 0.3;
+        else if (brightness < 0.7)
+            level = 1.0;
+        else
+            level = 1.3;
+
+        vec3 toonColor = baseColor * level;
+        FragColor = vec4(toonColor, texColor.a);
+    } else if (shadingModel == 2) { // Minnaert 
+        const float k = 0.8;
+        vec3 v2 = viewDir;
+        float nv = max(dot(norm, v2), 0.0);
+        float d2 = pow(1.0 - nv, 1.0 - k);
+        
+        vec3 minnaertResult = vec3(0.0);
+        
+        vec3 dirLightDir = normalize(-dirLight.direction);
+        float nl_dir = max(dot(norm, dirLightDir), 0.0);
+        float d1_dir = pow(nl_dir, 1.0 + k);
+        vec3 dirContrib = baseColor * d1_dir * d2 * dirLight.intensity;
+        minnaertResult += dirContrib;
+        
+        if (pointLightEnabled == 1) {
+            vec3 pointLightDir = normalize(pointLight.position - FragPos);
+            float nl_point = max(dot(norm, pointLightDir), 0.0);
+            float d1_point = pow(nl_point, 1.0 + k);
+            vec3 pointContrib = baseColor * d1_point * d2 * pointLight.intensity;
+            minnaertResult += pointContrib;
+        }
+        
+        if (spotLightEnabled == 1) {
+            vec3 spotLightDir = normalize(spotLight.position - FragPos);
+            float theta = dot(spotLightDir, normalize(-spotLight.direction));
+            float epsilon = spotLight.cutOff - spotLight.outerCutOff;
+            float spotIntensity = clamp((theta - spotLight.outerCutOff) / epsilon, 0.0, 1.0);
+            
+            float nl_spot = max(dot(norm, spotLightDir), 0.0);
+            float d1_spot = pow(nl_spot, 1.0 + k);
+            vec3 spotContrib = baseColor * d1_spot * d2 * spotIntensity * spotLight.intensity;
+            minnaertResult += spotContrib;
+        }
+        
+        FragColor = vec4(minnaertResult, texColor.a);
+    } else {
+        // На всякий случай — Phong по умолчанию
+        FragColor = vec4(result, texColor.a);
+    }
 }
 )";
+
+
+Shader::Shader() {
+    GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertex);
+    checkCompileErrors(vertex, "VERTEX");
+
+    GLuint fragment = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragment);
+    checkCompileErrors(fragment, "FRAGMENT");
+
+    programID = glCreateProgram();
+    glAttachShader(programID, vertex);
+    glAttachShader(programID, fragment);
+    glLinkProgram(programID);
+    checkCompileErrors(programID, "PROGRAM");
+
+    glDeleteShader(vertex);
+    glDeleteShader(fragment);
+}
+
+Shader::~Shader() {
+    glDeleteProgram(programID);
+}
+
+void Shader::use() const {
+    glUseProgram(programID);
+}
+
+void Shader::setMat4(const std::string& name, const glm::mat4& mat) const {
+    glUniformMatrix4fv(glGetUniformLocation(programID, name.c_str()),
+        1, GL_FALSE, &mat[0][0]);
+}
+
+void Shader::setVec3(const std::string& name, const glm::vec3& vec) const {
+    glUniform3fv(glGetUniformLocation(programID, name.c_str()), 1, &vec[0]);
+}
+
+void Shader::setFloat(const std::string& name, float value) const {
+    glUniform1f(glGetUniformLocation(programID, name.c_str()), value);
+}
+
+void Shader::setInt(const std::string& name, int value) const {
+    glUniform1i(glGetUniformLocation(programID, name.c_str()), value);
+}
+
+void Shader::checkCompileErrors(GLuint shader, const std::string& type) {
+    int success;
+    char infoLog[1024];
+
+    if (type != "PROGRAM") {
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(shader, 1024, NULL, infoLog);
+            std::cerr << "Ошибка компиляции " << type << " шейдера:" << std::endl
+                << infoLog << std::endl;
+        }
+    }
+    else {
+        glGetProgramiv(shader, GL_LINK_STATUS, &success);
+        if (!success) {
+            glGetProgramInfoLog(shader, 1024, NULL, infoLog);
+            std::cerr << "Ошибка линкования программы:" << std::endl
+                << infoLog << std::endl;
+        }
+    }
+}
