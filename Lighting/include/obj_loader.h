@@ -15,8 +15,8 @@ struct OBJVertex {
     glm::vec3 normal;
     
     bool operator==(const OBJVertex& other) const {
-        return position == other.position && 
-               texCoord == other.texCoord && 
+        return position == other.position &&
+               texCoord == other.texCoord &&
                normal == other.normal;
     }
 };
@@ -25,7 +25,6 @@ class OBJModel {
 public:
     std::vector<OBJVertex> vertices;
     std::vector<GLuint> indices;
-    
     GLuint VAO = 0, VBO = 0, EBO = 0;
     size_t indexCount = 0;
     
@@ -80,8 +79,8 @@ public:
                         posIdx = std::stoi(vertex);
                     } else {
                         posIdx = std::stoi(vertex.substr(0, slash1));
-                        
                         size_t slash2 = vertex.find('/', slash1 + 1);
+                        
                         if (slash2 != std::string::npos) {
                             if (slash2 > slash1 + 1) { // true: 1/1/1 # вершины/текстуры/нормали;       false: 1//1 # вершины//нормали
                                 texIdx = std::stoi(vertex.substr(slash1 + 1, slash2 - (slash1 + 1)));
@@ -127,7 +126,6 @@ public:
         
         std::cout << "Модель загружена: " << vertices.size() << " вершин, "
                   << indexCount << " индексов" << std::endl;
-        
         return true;
     }
     
@@ -141,18 +139,17 @@ public:
         glBindVertexArray(VAO);
         
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, 
-                    vertices.size() * sizeof(OBJVertex),
-                    vertices.data(),
-                    GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER,
+                     vertices.size() * sizeof(OBJVertex),
+                     vertices.data(),
+                     GL_STATIC_DRAW);
         
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                    indices.size() * sizeof(GLuint),
-                    indices.data(),
-                    GL_STATIC_DRAW);
+                     indices.size() * sizeof(GLuint),
+                     indices.data(),
+                     GL_STATIC_DRAW);
         
-        // Layout
         // Position
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
                             sizeof(OBJVertex),
@@ -177,7 +174,6 @@ public:
     
     void draw() const {
         if (VAO == 0) return;
-        
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
@@ -187,7 +183,6 @@ public:
         if (EBO != 0) glDeleteBuffers(1, &EBO);
         if (VBO != 0) glDeleteBuffers(1, &VBO);
         if (VAO != 0) glDeleteVertexArrays(1, &VAO);
-        
         vertices.clear();
         indices.clear();
     }
@@ -200,7 +195,7 @@ private:
     std::unordered_map<std::string, unsigned int> vertexMap;
     
     unsigned int addVertex(const OBJVertex& v) {
-        // дедупликация
+        // Простая дедупликация вершин
         for (size_t i = 0; i < vertices.size(); i++) {
             if (vertices[i] == v) {
                 return i;
@@ -215,10 +210,10 @@ private:
         
         vertices = {
             // Front
-            {{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-            {{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-            {{ 0.5f,  0.5f,  0.5f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
-            {{-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+            {{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+            {{ 0.5f, -0.5f, 0.5f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+            {{ 0.5f,  0.5f, 0.5f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+            {{-0.5f,  0.5f, 0.5f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
             // Back
             {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
             {{ 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
@@ -237,6 +232,7 @@ private:
         
         indexCount = indices.size();
         setupBuffers();
+        
         return true;
     }
 };
