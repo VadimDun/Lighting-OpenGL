@@ -101,8 +101,23 @@ vec3 calcPointLight(PointLight light, vec3 norm, vec3 fragPos, vec3 viewDir, vec
 
 vec3 calcSpotLight(SpotLight light, vec3 norm, vec3 fragPos, vec3 viewDir, vec3 baseColor)
 {
-    // TODO
-    return vec3(0.0);
+    vec3 lightDir = normalize(light.position - fragPos);
+    float theta   = dot(lightDir, normalize(-light.direction));
+
+    float epsilon   = light.cutOff - light.outerCutOff;
+    float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
+
+    float diff = max(dot(norm, lightDir), 0.0);
+
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+
+    vec3 ambient  = 0.1 * baseColor;
+    vec3 diffuse  = diff * baseColor;
+    vec3 specular = 0.6 * spec * vec3(1.0);
+
+    vec3 color = ambient + diffuse + specular;
+    return color * intensity * light.intensity;
 }
 
 void main() {
