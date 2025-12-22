@@ -22,7 +22,7 @@ OBJModel treeModel;
 OBJModel hatModel;
 OBJModel candyModel;
 OBJModel snowmanModel;
-OBJModel lampModel;          // модель шара-лампы
+OBJModel lampModel;
 
 // Текстуры
 GLuint modelTexture = 0;
@@ -33,7 +33,7 @@ GLuint treeTexture = 0;
 GLuint hatTexture = 0;
 GLuint candyTexture = 0;
 GLuint snowmanTexture = 0;
-GLuint lampTexture = 0;      // текстура для шара-лампы
+GLuint lampTexture = 0;
 
 Shader* shader = nullptr;
 Camera* camera = nullptr;
@@ -52,9 +52,14 @@ bool gSpotLightOn = false;
 glm::vec3 gPointLightPos(5.0f, 5.0f, 5.0f);
 glm::vec3 gDirLightDir(-0.3f, -1.0f, -0.2f);
 
-// режим управления:
-// 0 = камера, 1 = направленный свет, 2 = точечный источник
-int gControlMode = 0;
+// режим управления
+enum ControlMode {
+    CAMERA,
+    DIRECTIONAL_LIGHT,
+    POINT_SOURCE
+};
+ControlMode gControlMode = ControlMode::CAMERA;
+
 
 GLuint loadTexture(const std::string& filename) {
     sf::Image image;
@@ -97,6 +102,7 @@ void initGL() {
 }
 
 void initResources() {
+    // tableModel
     if (!tableModel.load("models/table.obj")) {
         std::cerr << "Ошибка загрузки модели стола" << std::endl;
     }
@@ -107,6 +113,7 @@ void initResources() {
     }
     modelTexture = loadTexture("textures/table.png");
 
+    // chairModel
     if (!chairModel.load("models/chair.obj")) {
         std::cerr << "Ошибка загрузки модели стула" << std::endl;
     }
@@ -118,6 +125,7 @@ void initResources() {
 
     chairTexture = loadTexture("textures/chair.png");
 
+    // vaseModel
     if (!vaseModel.load("models/vase.obj")) {
         std::cerr << "Ошибка загрузки модели вазы" << std::endl;
     }
@@ -129,6 +137,7 @@ void initResources() {
 
     vaseTexture = loadTexture("textures/vase.png");
 
+    // cubeModel
     if (!cubeModel.load("models/cube.obj")) {
         std::cerr << "Ошибка загрузки модели кубика" << std::endl;
     }
@@ -140,6 +149,7 @@ void initResources() {
 
     cubeTexture = loadTexture("textures/cube.jpg");
 
+    // treeModel
     if (!treeModel.load("models/PolyTree.obj")) {
         std::cerr << "Ошибка загрузки модели дерева" << std::endl;
     }
@@ -151,6 +161,7 @@ void initResources() {
 
     treeTexture = loadTexture("textures/PolyTree.jpg");
 
+    // candyModel
     if (!candyModel.load("models/candy.obj")) {
         std::cerr << "Ошибка загрузки модели конфеты" << std::endl;
     }
@@ -162,6 +173,7 @@ void initResources() {
 
     candyTexture = loadTexture("textures/candy.png");
 
+    // snowmanModel
     if (!snowmanModel.load("models/snowman.obj")) {
         std::cerr << "Ошибка загрузки модели снеговика" << std::endl;
     }
@@ -173,6 +185,7 @@ void initResources() {
 
     snowmanTexture = loadTexture("textures/snowman.png");
 
+    // lampModel
     // Шар, обозначающий положение точечного источника света
     if (!lampModel.load("models/sphere.obj")) {
         std::cerr << "Ошибка загрузки модели шара-лампы" << std::endl;
@@ -183,7 +196,7 @@ void initResources() {
             << lampModel.indices.size() << " индексов" << std::endl;
     }
 
-    // Текстура для лампы
+    // Текстура для лампы (шара)
     lampTexture = loadTexture("textures/sphere.jpg");
 
     shader = new Shader();
@@ -200,14 +213,17 @@ void render(float width, float height) {
     glm::mat4 view = camera->getViewMatrix();
     glm::mat4 projection = camera->getProjectionMatrix(width / height);
 
+
     // Точечный источник (лампочка над столом)
     shader->setVec3("pointLight.position", gPointLightPos);
     shader->setFloat("pointLight.intensity", gPointLightIntensity);
     shader->setInt("pointLightEnabled", gPointLightOn ? 1 : 0);
 
+
     // Направленный источник (солнечный свет)
     shader->setVec3("dirLight.direction", gDirLightDir);
     shader->setFloat("dirLight.intensity", gDirLightIntensity);
+
 
     // Прожектор (фонарик камеры)
     shader->setVec3("spotLight.position", camera->position);
@@ -220,9 +236,10 @@ void render(float width, float height) {
     float outerCutOff = glm::cos(glm::radians(gSpotOuterAngleDeg)); // мягкое затухание
     shader->setFloat("spotLight.cutOff", innerCutOff);
     shader->setFloat("spotLight.outerCutOff", outerCutOff);
-
     shader->setVec3("viewPos", camera->position);
 
+
+    // Для моделей
     glm::mat4 modelMatrix = glm::mat4(1.0f);
     modelMatrix = glm::scale(modelMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
 
@@ -230,12 +247,14 @@ void render(float width, float height) {
     shader->setMat4("view", view);
     shader->setMat4("projection", projection);
 
+
     // Стол: Phong
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, modelTexture);
     shader->setInt("textureSampler", 0);
     shader->setInt("shadingModel", 0);
     tableModel.draw();
+
 
     // Стул: Toon
     glm::mat4 chairMatrix = glm::mat4(1.0f);
@@ -248,6 +267,7 @@ void render(float width, float height) {
     shader->setInt("shadingModel", 1);
     chairModel.draw();
 
+
     // Ваза: Minnaert
     glm::mat4 vaseMatrix = glm::mat4(1.0f);
     vaseMatrix = glm::translate(vaseMatrix, glm::vec3(-1.0f, 2.83f, 0.0f));
@@ -257,6 +277,7 @@ void render(float width, float height) {
     shader->setInt("textureSampler", 0);
     shader->setInt("shadingModel", 2);
     vaseModel.draw();
+
 
     // Куб: Phong
     glm::mat4 cubeMatrix = glm::mat4(1.0f);
@@ -269,6 +290,7 @@ void render(float width, float height) {
     shader->setInt("shadingModel", 0);
     cubeModel.draw();
 
+
     // Ёлка: Phong
     glm::mat4 treeMatrix = glm::mat4(1.0f);
     treeMatrix = glm::translate(treeMatrix, glm::vec3(0.0f, 2.85f, -1.0f));
@@ -279,6 +301,7 @@ void render(float width, float height) {
     shader->setInt("textureSampler", 0);
     shader->setInt("shadingModel", 1);
     treeModel.draw();
+
 
     // Конфета: Toon
     glm::mat4 candyMatrix = glm::mat4(1.0f);
@@ -292,6 +315,7 @@ void render(float width, float height) {
     shader->setInt("shadingModel", 1);
     candyModel.draw();
 
+
     // Снеговик: Phong
     glm::mat4 snowmanMatrix = glm::mat4(1.0f);
     snowmanMatrix = glm::translate(snowmanMatrix, glm::vec3(-0.5f, 2.85f, 1.7f));
@@ -302,6 +326,7 @@ void render(float width, float height) {
     shader->setInt("textureSampler", 0);
     shader->setInt("shadingModel", 0);
     snowmanModel.draw();
+
 
     // Шар-лампа в позиции точечного источника света: Minnaert
     if (gPointLightOn) {
@@ -315,6 +340,7 @@ void render(float width, float height) {
         lampModel.draw();
     }
 
+
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
 }
@@ -326,7 +352,7 @@ void handleInput(float deltaTime) {
     float angleChangeSpeed = 20.0f * deltaTime; // градусов в секунду
 
     // WASD и стрелки: зависят от режима управления
-    if (gControlMode == 0) {
+    if (gControlMode == ControlMode::CAMERA) {
         // Режим управления камерой
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
             camera->moveForward(moveSpeed);
@@ -361,7 +387,7 @@ void handleInput(float deltaTime) {
             camera->rotateYaw(rotateSpeed);
         }
     }
-    else if (gControlMode == 1) {
+    else if (gControlMode == ControlMode::DIRECTIONAL_LIGHT) {
         // Режим управления направленным источником света
         // WASD изменяют направление вектора gDirLightDir
         glm::vec3 dir = gDirLightDir;
@@ -396,7 +422,7 @@ void handleInput(float deltaTime) {
             camera->rotateYaw(rotateSpeed);
         }
     }
-    else if (gControlMode == 2) {
+    else if (gControlMode == ControlMode::POINT_SOURCE) {
         // Режим управления точечным источником света
         // WASD двигают его по XZ, стрелки вверх/вниз — по Y
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
@@ -505,7 +531,7 @@ void handleInput(float deltaTime) {
     static bool modeTogglePressed = false;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Tab)) {
         if (!modeTogglePressed) {
-            gControlMode = (gControlMode + 1) % 3;
+            gControlMode = (ControlMode)(((int)gControlMode + 1) % 3);
 
             std::cout << "Режим управления: ";
             if (gControlMode == 0) {
@@ -544,7 +570,7 @@ void handleInput(float deltaTime) {
             gPointLightPos = glm::vec3(5.0f, 5.0f, 5.0f);
             gDirLightDir = glm::vec3(-0.3f, -1.0f, -0.2f);
 
-            gControlMode = 0;
+            gControlMode = ControlMode::CAMERA;
 
             std::cout << "Камера и источники света сброшены к значениям по умолчанию" << std::endl;
             rKeyPressed = true;
